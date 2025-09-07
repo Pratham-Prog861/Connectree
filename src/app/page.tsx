@@ -13,6 +13,8 @@ import { Trash2, Plus, Loader2, Copy } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { generateAvatarAction } from './actions';
 import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Terminal } from 'lucide-react';
 
 const linkSchema = z.object({
   label: z.string().min(1, 'Label is required.'),
@@ -31,6 +33,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedJson, setGeneratedJson] = useState('');
+  const [username, setUsername] = useState('your-username');
   const { toast } = useToast()
 
   const {
@@ -68,23 +71,39 @@ export default function Home() {
       const jsonString = JSON.stringify(profileData, null, 2);
       setGeneratedJson(jsonString);
       
-      alert('JSON generated successfully! You can now copy it from the text area below.');
+      toast({
+        title: "JSON Generated!",
+        description: "You can now copy the JSON and save it to a file.",
+      });
       
     } catch (error) {
       console.error('An error occurred:', error);
-      alert('An error occurred while generating the JSON. Please check the console.');
+      toast({
+        title: "Error",
+        description: "An error occurred while generating the JSON.",
+        variant: "destructive"
+      })
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const copyJson = () => {
+    if(!generatedJson) return;
     navigator.clipboard.writeText(generatedJson);
     toast({
         title: "Copied!",
         description: "JSON copied to clipboard.",
       })
   }
+
+  const getShareableLink = () => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/user/${username}`;
+    }
+    return '';
+  }
+
 
   return (
     <div className="min-h-screen bg-background w-full">
@@ -178,30 +197,69 @@ export default function Home() {
           </Card>
           
           <div className="space-y-4">
-              <Card className="h-full">
+              <Card>
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div>
-                            <CardTitle>Generated JSON</CardTitle>
+                            <CardTitle>1. Generated JSON</CardTitle>
                             <CardDescription>
-                            Copy this and save it as `public/users/your-username.json`.
+                                The JSON for your profile will appear below.
                             </CardDescription>
                         </div>
                         {generatedJson && (
-                            <Button variant="ghost" size="icon" onClick={copyJson}>
+                            <Button variant="ghost" size="icon" onClick={copyJson} aria-label="Copy JSON">
                                 <Copy className="h-5 w-5"/>
                             </Button>
                         )}
                     </div>
                 </CardHeader>
                 <CardContent>
-                  <pre className="w-full bg-muted p-4 rounded-md overflow-x-auto text-sm">
+                  <pre className="w-full bg-muted p-4 rounded-md overflow-x-auto text-sm h-64">
                     <code>
                       {generatedJson || "Your generated JSON will appear here..."}
                     </code>
                   </pre>
                 </CardContent>
               </Card>
+
+               <Alert>
+                <Terminal className="h-4 w-4" />
+                <AlertTitle>2. Create Your Live Link</AlertTitle>
+                <AlertDescription className="space-y-4 mt-2">
+                 <div>
+                    To make your profile live, you need to save the generated JSON to a file in this project.
+                    <ol className="list-decimal list-inside mt-2 space-y-1">
+                        <li>In the file explorer, right-click the `public/users` folder and select "New File".</li>
+                        <li>
+                            Name the file 
+                            <Input 
+                                className="inline-block w-auto mx-1 h-7"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
+                            /> 
+                            .json and paste your copied JSON inside.
+                        </li>
+                        <li>Save the file. Your profile is now live!</li>
+                    </ol>
+                 </div>
+                 <div>
+                    <Label>Your shareable link:</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input readOnly value={getShareableLink()} className="bg-muted"/>
+                      <Button onClick={() => {
+                        navigator.clipboard.writeText(getShareableLink());
+                        toast({ title: "Copied!", description: "Link copied to clipboard." });
+                      }}>
+                        <Copy className="h-4 w-4 mr-2"/> Copy
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                        You can also see an example at <a href="/user/linkjson" target="_blank" className="underline">/user/linkjson</a>.
+                    </p>
+                 </div>
+                </AlertDescription>
+              </Alert>
+
           </div>
         </main>
       </div>

@@ -1,0 +1,19 @@
+{
+  "name": "LinkJSON",
+  "bio": "The official example profile for LinkJSON Creator!",
+  "avatar": "https://picsum.photos/200",
+  "links": [
+    {
+      "label": "GitHub",
+      "url": "https://github.com"
+    },
+    {
+      "label": "Twitter",
+      "url": "https://twitter.com"
+    },
+    {
+      "label": "Portfolio",
+      "url": "https://example.com"
+    }
+  ]
+}
