@@ -15,6 +15,7 @@ import { Trash2, Plus, Loader2, Copy, Rocket, Upload, Link as LinkIcon } from 'l
 import { ThemeToggle } from '@/components/theme-toggle';
 import { generateAvatarAction, saveProfile } from './actions';
 import { useToast } from "@/hooks/use-toast"
+import { storeProfile, cleanupOldProfiles, getStorageStats } from '@/lib/profile-storage';
 
 const linkSchema = z.object({
   label: z.string().min(1, 'Label is required.'),
@@ -47,6 +48,8 @@ export default function Home() {
   const [generatedJson, setGeneratedJson] = useState('');
   const [username, setUsername] = useState('your-name');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [shareableUrl, setShareableUrl] = useState('');
+  const [storageStats, setStorageStats] = useState({ totalProfiles: 0, storageSize: '0 KB' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast()
 
@@ -81,6 +84,7 @@ export default function Home() {
       setUsername('your-name');
     }
     setGeneratedJson(''); // Clear JSON when name changes
+    setShareableUrl(''); // Clear shareable URL when name changes
   }, [watchedName]);
   
   const watchedAvatarUrl = watch('avatar');
@@ -91,6 +95,13 @@ export default function Home() {
         setAvatarPreview(null);
      }
   }, [watchedAvatarUrl]);
+
+  // Update storage stats on component mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setStorageStats(getStorageStats());
+    }
+  }, [generatedJson]); // Update when a new profile is generated
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -147,10 +158,10 @@ export default function Home() {
   }
 
   const getShareableLink = () => {
-    if (typeof window !== 'undefined') {
-      return `${window.location.origin}/user/${username}`;
+    if (shareableUrl) {
+      return shareableUrl;
     }
-    return '';
+    return `${window.location.origin}/p/abc123 (Generate and go live first)`;
   }
   
   const handleGoLive = async () => {
@@ -165,16 +176,25 @@ export default function Home() {
     
     setIsSaving(true);
     try {
-      const result = await saveProfile(username, generatedJson);
-      if (result.success) {
-        toast({
-          title: "You're Live!",
-          description: "Your profile is now public. Opening it for you...",
-        });
-        window.open(getShareableLink(), '_blank');
-      } else {
-        throw new Error(result.message);
-      }
+      // Clean up old profiles first
+      cleanupOldProfiles();
+      
+      // Store profile and get short hash
+      const hash = storeProfile(generatedJson);
+      
+      // Create short shareable URL
+      const shareableUrl = `${window.location.origin}/p/${hash}`;
+      
+      toast({
+        title: "You're Live!",
+        description: "Your profile is ready with a short URL! Opening it for you...",
+      });
+      
+      // Update the shareable link and open it
+      setShareableUrl(shareableUrl);
+      setStorageStats(getStorageStats()); // Update storage stats
+      window.open(shareableUrl, '_blank');
+      
     } catch (error) {
        console.error('Failed to go live:', error);
        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -371,7 +391,10 @@ export default function Home() {
                               )}
                         </Button>
                          <p className="text-xs text-muted-foreground text-center">
-                            You can also see an example at <a href="/user/linkjson" target="_blank" className="underline">/user/linkjson</a>.
+                            Create your profile and get a shareable link like the one above!
+                        </p>
+                        <p className="text-xs text-muted-foreground text-center mt-2">
+                            Storage: {storageStats.totalProfiles} profiles, {storageStats.storageSize}
                         </p>
                     </CardContent>
                  </Card>
