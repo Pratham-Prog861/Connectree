@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -9,12 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Trash2, Plus, Loader2, Copy } from 'lucide-react';
+import { Trash2, Plus, Loader2, Copy, Rocket } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { generateAvatarAction } from './actions';
+import { generateAvatarAction, saveProfile } from './actions';
 import { useToast } from "@/hooks/use-toast"
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal } from 'lucide-react';
 
 const linkSchema = z.object({
   label: z.string().min(1, 'Label is required.'),
@@ -43,6 +41,7 @@ const slugify = (text: string) =>
 
 export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [generatedJson, setGeneratedJson] = useState('');
   const [username, setUsername] = useState('your-name');
   const { toast } = useToast()
@@ -76,6 +75,7 @@ export default function Home() {
     } else {
       setUsername('your-name');
     }
+    setGeneratedJson(''); // Clear JSON when name changes
   }, [watchedName]);
   
   const onSubmit = async (data: ProfileFormValues) => {
@@ -95,7 +95,7 @@ export default function Home() {
       
       toast({
         title: "JSON Generated!",
-        description: "You can now copy the JSON and save it to a file.",
+        description: "You can now make your profile live.",
       });
       
     } catch (error) {
@@ -125,6 +125,41 @@ export default function Home() {
     }
     return '';
   }
+  
+  const handleGoLive = async () => {
+    if (!generatedJson || !username || username === 'your-name') {
+      toast({
+        title: "Cannot go live",
+        description: "Please generate your JSON first and enter a name.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      const result = await saveProfile(username, generatedJson);
+      if (result.success) {
+        toast({
+          title: "You're Live!",
+          description: "Your profile is now public. Opening it for you...",
+        });
+        window.open(getShareableLink(), '_blank');
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+       console.error('Failed to go live:', error);
+       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+       toast({
+         title: "Error Going Live",
+         description: errorMessage,
+         variant: "destructive",
+       });
+    } finally {
+        setIsSaving(false);
+    }
+  };
 
 
   return (
@@ -208,7 +243,7 @@ export default function Home() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
+                      Generating JSON...
                     </>
                   ) : (
                     'Generate JSON'
@@ -223,9 +258,9 @@ export default function Home() {
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div>
-                            <CardTitle>1. Generated JSON</CardTitle>
+                            <CardTitle>Generated JSON</CardTitle>
                             <CardDescription>
-                                The JSON for your profile will appear below.
+                                Your profile JSON will appear here.
                             </CardDescription>
                         </div>
                         {generatedJson && (
@@ -243,39 +278,46 @@ export default function Home() {
                   </pre>
                 </CardContent>
               </Card>
-
-               <Alert>
-                <Terminal className="h-4 w-4" />
-                <AlertTitle>2. Create Your Live Link</AlertTitle>
-                <AlertDescription className="space-y-4 mt-2">
-                 <div>
-                    To make your profile live, you need to save the generated JSON to a file in this project.
-                    <ol className="list-decimal list-inside mt-2 space-y-1">
-                        <li>In the file explorer, right-click the `public/users` folder and select "New File".</li>
-                        <li>
-                            Name the file <code className="bg-muted px-1 py-0.5 rounded-sm">{username}.json</code> and paste your copied JSON inside.
-                        </li>
-                        <li>Save the file. Your profile is now live!</li>
-                    </ol>
-                 </div>
-                 <div>
-                    <Label>Your shareable link:</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Input readOnly value={getShareableLink()} className="bg-muted"/>
-                      <Button onClick={() => {
-                        navigator.clipboard.writeText(getShareableLink());
-                        toast({ title: "Copied!", description: "Link copied to clipboard." });
-                      }}>
-                        <Copy className="h-4 w-4 mr-2"/> Copy
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                        You can also see an example at <a href="/user/linkjson" target="_blank" className="underline">/user/linkjson</a>.
-                    </p>
-                 </div>
-                </AlertDescription>
-              </Alert>
-
+               {generatedJson && (
+                 <Card>
+                    <CardHeader>
+                      <CardTitle>You're ready to go live!</CardTitle>
+                      <CardDescription>
+                        Click the button below to publish your profile and get your shareable link.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div>
+                            <Label>Your shareable link will be:</Label>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Input readOnly value={getShareableLink()} className="bg-muted"/>
+                              <Button onClick={() => {
+                                navigator.clipboard.writeText(getShareableLink());
+                                toast({ title: "Copied!", description: "Link copied to clipboard." });
+                              }}>
+                                <Copy className="h-4 w-4"/>
+                              </Button>
+                            </div>
+                         </div>
+                        <Button onClick={handleGoLive} className="w-full" disabled={isSaving}>
+                            {isSaving ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Publishing...
+                                </>
+                              ) : (
+                                <>
+                                  <Rocket className="mr-2 h-4 w-4" />
+                                  Go Live & Share
+                                </>
+                              )}
+                        </Button>
+                         <p className="text-xs text-muted-foreground text-center">
+                            You can also see an example at <a href="/user/linkjson" target="_blank" className="underline">/user/linkjson</a>.
+                        </p>
+                    </CardContent>
+                 </Card>
+                )}
           </div>
         </main>
       </div>
