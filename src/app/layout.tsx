@@ -4,7 +4,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'LinkJSON',
+  title: 'Connectree',
   description: 'A simple Linktree clone using Next.js without a database.',
 };
 
