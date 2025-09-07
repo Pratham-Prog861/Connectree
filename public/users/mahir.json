@@ -1,0 +1,10 @@
+{
+  "name": "Mahir Shah",
+  "bio": "Full Stack Engineer & Open Source Contributor",
+  "avatar": "https://picsum.photos/seed/mahir/200/200",
+  "links": [
+    { "label": "Portfolio", "url": "https://mahir.dev" },
+    { "label": "GitHub", "url": "https://github.com/mahir" },
+    { "label": "Email", "url": "mailto:mahir@example.com" }
+  ]
+}
