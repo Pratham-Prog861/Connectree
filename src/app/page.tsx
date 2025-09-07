@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Trash2, Plus, Loader2, Copy, Rocket } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trash2, Plus, Loader2, Copy, Rocket, Upload, Link as LinkIcon } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { generateAvatarAction, saveProfile } from './actions';
 import { useToast } from "@/hooks/use-toast"
@@ -22,7 +24,7 @@ const linkSchema = z.object({
 const profileSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   bio: z.string().max(160, 'Bio must be 160 characters or less.').optional(),
-  avatar: z.string().url('Please enter a valid image URL.').or(z.literal('')).optional(),
+  avatar: z.string().optional(),
   links: z.array(linkSchema).min(1, 'At least one link is required.'),
 });
 
@@ -44,6 +46,8 @@ export default function Home() {
   const [isSaving, setIsSaving] = useState(false);
   const [generatedJson, setGeneratedJson] = useState('');
   const [username, setUsername] = useState('your-name');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast()
 
   const {
@@ -51,6 +55,7 @@ export default function Home() {
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -77,6 +82,28 @@ export default function Home() {
     }
     setGeneratedJson(''); // Clear JSON when name changes
   }, [watchedName]);
+  
+  const watchedAvatarUrl = watch('avatar');
+  useEffect(() => {
+     if (watchedAvatarUrl && watchedAvatarUrl.startsWith('http')) {
+        setAvatarPreview(watchedAvatarUrl);
+     } else if (!watchedAvatarUrl) {
+        setAvatarPreview(null);
+     }
+  }, [watchedAvatarUrl]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUri = reader.result as string;
+        setValue('avatar', dataUri, { shouldValidate: true });
+        setAvatarPreview(dataUri);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
   
   const onSubmit = async (data: ProfileFormValues) => {
     setIsSubmitting(true);
@@ -193,10 +220,41 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="avatar">Avatar URL</Label>
-                  <Input id="avatar" {...register('avatar')} placeholder="https://your-image-url.com/avatar.png" />
-                   <p className="text-xs text-muted-foreground">If left blank or invalid, an AI-generated avatar will be used.</p>
-                  {errors.avatar && <p className="text-sm text-destructive">{errors.avatar.message}</p>}
+                  <Label>Avatar</Label>
+                   <Tabs defaultValue="url" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="url">URL</TabsTrigger>
+                      <TabsTrigger value="upload">Upload</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="url">
+                       <div className="space-y-2 pt-2">
+                          <Input {...register('avatar')} placeholder="https://your-image-url.com/avatar.png" />
+                          <p className="text-xs text-muted-foreground">
+                            Need an avatar?{' '}
+                            <a href="https://vinicius73.github.io/gravatar-url-generator/#/" target="_blank" rel="noopener noreferrer" className="underline">
+                              Create one here
+                            </a>.
+                          </p>
+                       </div>
+                    </TabsContent>
+                    <TabsContent value="upload">
+                       <div className="space-y-2 pt-2">
+                         <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                           <Upload className="mr-2 h-4 w-4" />
+                           Choose a file...
+                         </Button>
+                         <Input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} accept="image/*"/>
+                       </div>
+                    </TabsContent>
+                   </Tabs>
+                   {avatarPreview && (
+                     <div className="mt-4 flex flex-col items-center">
+                       <Label className="mb-2">Avatar Preview</Label>
+                        <Image src={avatarPreview} alt="Avatar Preview" width={80} height={80} className="rounded-full aspect-square object-cover" />
+                     </div>
+                   )}
+                   <p className="text-xs text-muted-foreground mt-2">If left blank or invalid, an AI-generated avatar will be used.</p>
+                   {errors.avatar && <p className="text-sm text-destructive">{errors.avatar.message}</p>}
                 </div>
                 
                 <div>
