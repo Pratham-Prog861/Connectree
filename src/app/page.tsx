@@ -193,7 +193,7 @@ export default function Home() {
     <div className="min-h-screen bg-background w-full">
       <div className="container mx-auto p-4 md:p-8">
         <header className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold font-headline text-foreground">LinkJSON Creator</h1>
+          <h1 className="text-3xl font-bold font-headline text-foreground">Connectree</h1>
           <ThemeToggle />
         </header>
 
