@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -30,16 +30,28 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+// Helper function to create a URL-friendly slug from a string
+const slugify = (text: string) =>
+  text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-') // Replace spaces with -
+    .replace(/[^\w-]+/g, '') // Remove all non-word chars
+    .replace(/--+/g, '-'); // Replace multiple - with single -
+
+
 export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedJson, setGeneratedJson] = useState('');
-  const [username, setUsername] = useState('your-username');
+  const [username, setUsername] = useState('your-name');
   const { toast } = useToast()
 
   const {
     register,
     control,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -55,6 +67,16 @@ export default function Home() {
     control,
     name: 'links',
   });
+
+  // Watch the name field and update the username slug
+  const watchedName = watch('name');
+  useEffect(() => {
+    if (watchedName) {
+      setUsername(slugify(watchedName));
+    } else {
+      setUsername('your-name');
+    }
+  }, [watchedName]);
   
   const onSubmit = async (data: ProfileFormValues) => {
     setIsSubmitting(true);
@@ -231,13 +253,7 @@ export default function Home() {
                     <ol className="list-decimal list-inside mt-2 space-y-1">
                         <li>In the file explorer, right-click the `public/users` folder and select "New File".</li>
                         <li>
-                            Name the file 
-                            <Input 
-                                className="inline-block w-auto mx-1 h-7"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9-]/g, ''))}
-                            /> 
-                            .json and paste your copied JSON inside.
+                            Name the file <code className="bg-muted px-1 py-0.5 rounded-sm">{username}.json</code> and paste your copied JSON inside.
                         </li>
                         <li>Save the file. Your profile is now live!</li>
                     </ol>
